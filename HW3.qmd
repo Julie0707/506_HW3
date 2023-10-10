@@ -10,7 +10,6 @@ editor: visual
 
 GitHub repository：https://github.com/Julie0707/506_HW3
 
-
 ## Problem 1 - Vision
 
 a.  Download the SAS file VIX_D, and then read it into Stata. Then download another SAS file DEMO_D. Merge the two files to create a single dataset, using the SEQN variable for merging. Print total sample size, showing that it is now 6,980.
@@ -53,7 +52,9 @@ file DEMO_D.dta saved
 
 b.  Estimate the proportion of respondents within each 10-year age bracket who wear glasses/contact lenses for distance vision. Produce a nice table with the results.
 
-We can see that the min. of age is 12 and the max. is 85, so we create age bracket 10-19, 20-29, ..., 80-89. First, based on viq240, we divide people into two category - "wear glasses or contacts" and "wear none".
+We can see that the min. of age is 12 and the max. is 85, so we create age brackets 10-19, 20-29, ..., 80-89. 
+
+First, based on data description for viq220, we know that 2765 people wear glasses or contacts or both, 3780 don't wear, 2 is unkown, and 433 data is missing. We divide people into 3 categories for question "wear glasses/contacts?": "Yes", "No", and "don't know".
 
 ``` stata
 . * Creating Age Brackets
@@ -65,263 +66,271 @@ We can see that the min. of age is 12 and the max. is 85, so we create age brack
 
 . egen agegroup = cut(ridageyr), at(10(10)90) label
 
-. gen wears_glasses_or_contacts = (viq240 == 1 | viq240 == 2 | viq240 == 3)
+. gen wears_glasses_or_contacts = .
+(6,980 missing values generated)
+
+. replace wears_glasses_or_contacts = 1 if viq220 == 1
+(2,765 real changes made)
+
+. replace wears_glasses_or_contacts = 0 if viq220 == 2
+(3,780 real changes made)
 
 . * Tabulating the Proportions
-. tab agegroup wears_glasses_or_contacts, row nofreq
-
-           | wears_glasses_or_cont
-           |         acts
-  agegroup |         0          1 |     Total
------------+----------------------+----------
-       10- |     78.43      21.57 |    100.00 
-       20- |     75.51      24.49 |    100.00 
-       30- |     70.90      29.10 |    100.00 
-       40- |     69.57      30.43 |    100.00 
-       50- |     49.76      50.24 |    100.00 
-       60- |     44.93      55.07 |    100.00 
-       70- |     38.59      61.41 |    100.00 
-       80- |     44.41      55.59 |    100.00 
------------+----------------------+----------
-     Total |     65.90      34.10 |    100.00 
-```
-
-And within the wears_glasses_or_contacts, we know there are three sub categories - "glasses", "contact" and "both", so we can make another table with more specific information.
-
-``` stata
+. 
 . * Modify labels for viq240 to include a category for non-users.
-. label define viq240_label 1 "Glasses" 2 "Contacts" 3 "Both" 4 "None", replace
+. label define viq220_label 1 "Yes" 2 "No" 9 "Don't know" 4 "Missing", replace
 
-. replace viq240 = 4 if viq240 != 1 & viq240 != 2 & viq240 != 3
-(4,600 real changes made)
+. replace viq240 = 4 if viq240 != 1 & viq240 != 2 & viq240 != 9
+(4,648 real changes made)
 
-. label values viq240 viq240_label
+. * Now attach the label values to the variable.
+. label values viq220 viq220_label
 
-. tab agegroup viq240, row nofreq
+. tab agegroup viq220, row nofreq
 
-           |      Which type? Glasses or contacts?
-  agegroup |   Glasses   Contacts       Both       None |     Total
------------+--------------------------------------------+----------
-       10- |     14.05       7.07       0.45      78.43 |    100.00 
-       20- |     14.30       8.91       1.27      75.51 |    100.00 
-       30- |     19.68       7.70       1.71      70.90 |    100.00 
-       40- |     25.52       3.80       1.10      69.57 |    100.00 
-       50- |     46.43       3.80       0.00      49.76 |    100.00 
-       60- |     52.50       2.27       0.30      44.93 |    100.00 
-       70- |     60.77       0.64       0.00      38.59 |    100.00 
-       80- |     55.59       0.00       0.00      44.41 |    100.00 
------------+--------------------------------------------+----------
-     Total |     27.92       5.49       0.69      65.90 |    100.00 
+           | Glasses/contact lenses worn for
+           |             distance
+  agegroup |       Yes         No  Don't kno |     Total
+-----------+---------------------------------+----------
+       10- |     32.09      67.91       0.00 |    100.00 
+       20- |     32.59      67.20       0.21 |    100.00 
+       30- |     35.87      64.13       0.00 |    100.00 
+       40- |     37.00      63.00       0.00 |    100.00 
+       50- |     55.01      44.99       0.00 |    100.00 
+       60- |     62.22      37.78       0.00 |    100.00 
+       70- |     66.89      33.11       0.00 |    100.00 
+       80- |     66.88      33.12       0.00 |    100.00 
+-----------+---------------------------------+----------
+     Total |     42.23      57.74       0.03 |    100.00 
+
 ```
 
-c.  Fit three logistic regression models predicting whether a respondent wears glasses/contact lenses for distance vision. Predictors: 1.age 2.age, race, gender 3.age, race, gender, Poverty Income ratio Produce a table presenting the estimated odds ratios for the coefficients in each model, along with the sample size for the model, the pseudo-R\^2, and AIC values.
+c.  Fit three logistic regression models predicting whether a respondent wears glasses/contact lenses for distance vision. Predictors: 1.age 2.age, race, gender 3.age, race, gender, Poverty Income ratio. Produce a table presenting the estimated odds ratios for the coefficients in each model, along with the sample size for the model, the pseudo-R\^2, and AIC values.
+
+If one of the independent variables in logistic regression model is a categorical variable, we should typically include it in the model using **indicator (dummy) variables**.
+
+Since we have generated **wears_glasses_or_contacts** before, we can run regression easily here.
 
 ``` stata
+. * logistic model
 . * Model 1
-. logit wears_glasses_or_contacts ridageyr
+. logit wears_glasses_or_contacts ridageyr, or
 
-Iteration 0:   log likelihood = -4478.9233  
-Iteration 1:   log likelihood = -4183.3681  
-Iteration 2:   log likelihood =  -4181.457  
-Iteration 3:   log likelihood = -4181.4567  
+Iteration 0:   log likelihood = -4457.6265  
+Iteration 1:   log likelihood = -4236.2351  
+Iteration 2:   log likelihood = -4235.9433  
+Iteration 3:   log likelihood = -4235.9433  
 
-Logistic regression                             Number of obs     =      6,980
-                                                LR chi2(1)        =     594.93
+Logistic regression                             Number of obs     =      6,545
+                                                LR chi2(1)        =     443.37
                                                 Prob > chi2       =     0.0000
-Log likelihood = -4181.4567                     Pseudo R2         =     0.0664
+Log likelihood = -4235.9433                     Pseudo R2         =     0.0497
 
 -------------------------------------------------------------------------------------------
-wears_glasses_or_contacts |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+wears_glasses_or_contacts | Odds Ratio   Std. Err.      z    P>|z|     [95% Conf. Interval]
 --------------------------+----------------------------------------------------------------
-                 ridageyr |   .0284784   .0012043    23.65   0.000      .026118    .0308389
-                    _cons |  -1.789714   .0561758   -31.86   0.000    -1.899816   -1.679611
+                 ridageyr |    1.02498   .0012356    20.47   0.000     1.022561    1.027405
+                    _cons |    .283379   .0151461   -23.59   0.000     .2551952    .3146755
 -------------------------------------------------------------------------------------------
+Note: _cons estimates baseline odds.
 
-. estimates store m1
-
-. local n1 = e(N)
-
-. local pseudoR21 = e(r2_p)
-
-. local ll1 = e(ll)
-
-. local aic1 = -2*`ll1' + 2*1 
-
-. outreg2 using results.doc, eform replace ctitle() addstat(Sample Size, e(N), Log Likelihood, `ll1', Pseudo R^2, e(r2_p), AIC, `aic1')
+. eststo model1
 
 . * Model 2
-. logit wears_glasses_or_contacts ridageyr ridreth1 riagendr
+. logit wears_glasses_or_contacts ridageyr i.ridreth1 i.riagendr, or
 
-Iteration 0:   log likelihood = -4478.9233  
-Iteration 1:   log likelihood = -4136.6769  
-Iteration 2:   log likelihood = -4133.3559  
-Iteration 3:   log likelihood = -4133.3541  
-Iteration 4:   log likelihood = -4133.3541  
+Iteration 0:   log likelihood = -4457.6265  
+Iteration 1:   log likelihood = -4138.3859  
+Iteration 2:   log likelihood = -4136.8807  
+Iteration 3:   log likelihood = -4136.8805  
 
-Logistic regression                             Number of obs     =      6,980
-                                                LR chi2(3)        =     691.14
+Logistic regression                             Number of obs     =      6,545
+                                                LR chi2(6)        =     641.49
                                                 Prob > chi2       =     0.0000
-Log likelihood = -4133.3541                     Pseudo R2         =     0.0772
+Log likelihood = -4136.8805                     Pseudo R2         =     0.0720
 
 -------------------------------------------------------------------------------------------
-wears_glasses_or_contacts |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+wears_glasses_or_contacts | Odds Ratio   Std. Err.      z    P>|z|     [95% Conf. Interval]
 --------------------------+----------------------------------------------------------------
-                 ridageyr |   .0286168   .0012192    23.47   0.000     .0262272    .0310065
-                 ridreth1 |   .1351966    .023254     5.81   0.000     .0896196    .1807735
-                 riagendr |   .4192284   .0536014     7.82   0.000     .3141715    .5242853
-                    _cons |  -2.826326   .1234478   -22.89   0.000    -3.068279   -2.584373
+                 ridageyr |   1.022831   .0012912    17.88   0.000     1.020303    1.025365
+                          |
+                 ridreth1 |
+                       2  |   1.169203    .192081     0.95   0.341     .8473273    1.613349
+                       3  |   1.952149   .1366952     9.55   0.000     1.701803    2.239322
+                       4  |    1.29936   .0995052     3.42   0.001     1.118264    1.509783
+                       5  |   1.917442   .2596352     4.81   0.000     1.470495    2.500236
+                          |
+               2.riagendr |    1.65217   .0875831     9.47   0.000     1.489127    1.833064
+                    _cons |   .1593479   .0124169   -23.57   0.000     .1367784    .1856414
 -------------------------------------------------------------------------------------------
+Note: _cons estimates baseline odds.
 
-. estimates store m2
-
-. local n2 = e(N)
-
-. local pseudoR22 = e(r2_p)
-
-. local ll2 = e(ll)
-
-. local aic2 = -2*`ll2' + 2*3 
-
-. outreg2 using results.doc, eform append ctitle() addstat(Sample Size, e(N), Log Likelihood, `ll2', Pseudo R^2, e(r2_p), AIC, `aic2')
+. eststo model2
 
 . * Model 3
-. logit wears_glasses_or_contacts ridageyr ridreth1 riagendr indfmpir
+. logit wears_glasses_or_contacts ridageyr i.ridreth1 i.riagendr indfmpir, or
 
-Iteration 0:   log likelihood = -4277.4096  
-Iteration 1:   log likelihood = -3905.0737  
-Iteration 2:   log likelihood = -3900.1884  
-Iteration 3:   log likelihood = -3900.1829  
-Iteration 4:   log likelihood = -3900.1829  
+Iteration 0:   log likelihood = -4259.5533  
+Iteration 1:   log likelihood = -3948.3256  
+Iteration 2:   log likelihood = -3946.9043  
+Iteration 3:   log likelihood = -3946.9041  
 
-Logistic regression                             Number of obs     =      6,638
-                                                LR chi2(4)        =     754.45
+Logistic regression                             Number of obs     =      6,247
+                                                LR chi2(7)        =     625.30
                                                 Prob > chi2       =     0.0000
-Log likelihood = -3900.1829                     Pseudo R2         =     0.0882
+Log likelihood = -3946.9041                     Pseudo R2         =     0.0734
 
 -------------------------------------------------------------------------------------------
-wears_glasses_or_contacts |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+wears_glasses_or_contacts | Odds Ratio   Std. Err.      z    P>|z|     [95% Conf. Interval]
 --------------------------+----------------------------------------------------------------
-                 ridageyr |   .0276009    .001265    21.82   0.000     .0251215    .0300803
-                 ridreth1 |   .0880404   .0245416     3.59   0.000     .0399398     .136141
-                 riagendr |    .454698   .0552825     8.22   0.000     .3463463    .5630496
-                 indfmpir |    .188783   .0173202    10.90   0.000      .154836    .2227299
-                    _cons |  -3.174577   .1343728   -23.63   0.000    -3.437943   -2.911211
+                 ridageyr |   1.022436    .001324    17.14   0.000     1.019845    1.025035
+                          |
+                 ridreth1 |
+                       2  |   1.123021   .1889653     0.69   0.490     .8075333    1.561764
+                       3  |   1.651244   .1240886     6.67   0.000     1.425098    1.913277
+                       4  |   1.230456   .0974736     2.62   0.009     1.053503     1.43713
+                       5  |   1.703572   .2387583     3.80   0.000     1.294384    2.242114
+                          |
+               2.riagendr |   1.675767   .0910025     9.51   0.000      1.50657    1.863967
+                 indfmpir |   1.120301   .0198376     6.42   0.000     1.082087    1.159865
+                    _cons |   .1331659   .0116903   -22.97   0.000     .1121161    .1581678
 -------------------------------------------------------------------------------------------
+Note: _cons estimates baseline odds.
 
-. estimates store m3
+. eststo model3
 
-. local n3 = e(N)
+. * Produce result table
+. esttab model1 model2 model3, constant eform stats(N aic r2_p)
 
-. local pseudoR23 = e(r2_p)
+------------------------------------------------------------
+                      (1)             (2)             (3)   
+             wears_glas~s    wears_glas~s    wears_glas~s   
+------------------------------------------------------------
+wears_glas~s                                                
+ridageyr            1.025***        1.023***        1.022***
+                  (20.47)         (17.88)         (17.14)   
 
-. local ll3 = e(ll)
+1.ridreth1                              1               1   
+                                      (.)             (.)   
 
-. local aic3 = -2*`ll3' + 2*4  
+2.ridreth1                          1.169           1.123   
+                                   (0.95)          (0.69)   
 
-. outreg2 using results.doc, eform append ctitle() addstat(Sample Size, e(N), Log Likelihood, `ll3', Pseudo R^2, e(r2_p), AIC, `aic3')
-results.doc
-dir : seeout
+3.ridreth1                          1.952***        1.651***
+                                   (9.55)          (6.67)   
+
+4.ridreth1                          1.299***        1.230** 
+                                   (3.42)          (2.62)   
+
+5.ridreth1                          1.917***        1.704***
+                                   (4.81)          (3.80)   
+
+1.riagendr                              1               1   
+                                      (.)             (.)   
+
+2.riagendr                          1.652***        1.676***
+                                   (9.47)          (9.51)   
+
+indfmpir                                            1.120***
+                                                   (6.42)   
+
+_cons               0.283***        0.159***        0.133***
+                 (-23.59)        (-23.57)        (-22.97)   
+------------------------------------------------------------
+N                    6545            6545            6247   
+aic                8475.9          8287.8          7909.8   
+r2_p               0.0497          0.0720          0.0734   
+------------------------------------------------------------
+Exponentiated coefficients; t statistics in parentheses
+* p<0.05, ** p<0.01, *** p<0.001
+
 ```
 
-In this way, we obtained a nice table in results.doc.
+In this way, we obtained a nice table in Stata. 
 
-![result](./table_result.jpeg)
-
-Another way to produce such a table, without using outreg2, is in the following. It's not as nice-organized as the revious one, but it's produced within the Stata.
-
-``` stata
-. esttab m1 m2 m3, eform cells("b(fmt(3) star) se(fmt(3) par)") ///
->       stats(N ll r2_p AIC, fmt(2 3 3 2) labels("Sample Size" "Log Likelihood" "Pseudo R^2" "AIC")) //
-> /
->       mtitle("Model 1" "Model 2" "Model 3") label
-
--------------------------------------------------------------------------------------------------------
-> ----
-                              (1)                          (2)                          (3)            
->     
-                          Model 1                      Model 2                      Model 3            
->     
-                                b              se            b              se            b            
->   se
--------------------------------------------------------------------------------------------------------
-> ----
-wears_glasses_or_c~s                                                                                   
->     
-Age at Screening A~R        1.029***      (0.001)        1.029***      (0.001)        1.028***      (0.
-> 001)
-Race/Ethnicity - R~e                                     1.145***      (0.027)        1.092***      (0.
-> 027)
-Gender                                                   1.521***      (0.082)        1.576***      (0.
-> 087)
-Family PIR                                                                            1.208***      (0.
-> 021)
--------------------------------------------------------------------------------------------------------
-> ----
-Sample Size               6980.00                      6980.00                      6638.00            
->     
-Log Likelihood          -4181.457                    -4133.354                    -3900.183            
->     
-Pseudo R^2                  0.066                        0.077                        0.088            
->     
-AIC                                                                                                    
->     
--------------------------------------------------------------------------------------------------------
-> ----
-Exponentiated coefficients
-```
+Note: the baseline for the categorical variable is omitted from the model, so the coefficient for the baseline is 0, so exp(0) = 1.
 
 d.  From the third model, discuss whether the odds of men and women being wears of glasess/contact differs. Test whether the proportion of wearers of glasses/contact differs between men and women.
 
 ``` stata
-. logit wears_glasses_or_contacts ridageyr ridreth1 riagendr indfmpir
+. * Gender diff
+. logit wears_glasses_or_contacts ridageyr i.ridreth1 i.riagendr indfmpir, or
 
-Iteration 0:   log likelihood = -4277.4096  
-Iteration 1:   log likelihood = -3905.0737  
-Iteration 2:   log likelihood = -3900.1884  
-Iteration 3:   log likelihood = -3900.1829  
-Iteration 4:   log likelihood = -3900.1829  
+Iteration 0:   log likelihood = -4259.5533  
+Iteration 1:   log likelihood = -3948.3256  
+Iteration 2:   log likelihood = -3946.9043  
+Iteration 3:   log likelihood = -3946.9041  
 
-Logistic regression                             Number of obs     =      6,638
-                                                LR chi2(4)        =     754.45
+Logistic regression                             Number of obs     =      6,247
+                                                LR chi2(7)        =     625.30
                                                 Prob > chi2       =     0.0000
-Log likelihood = -3900.1829                     Pseudo R2         =     0.0882
+Log likelihood = -3946.9041                     Pseudo R2         =     0.0734
 
 -------------------------------------------------------------------------------------------
-wears_glasses_or_contacts |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+wears_glasses_or_contacts | Odds Ratio   Std. Err.      z    P>|z|     [95% Conf. Interval]
 --------------------------+----------------------------------------------------------------
-                 ridageyr |   .0276009    .001265    21.82   0.000     .0251215    .0300803
-                 ridreth1 |   .0880404   .0245416     3.59   0.000     .0399398     .136141
-                 riagendr |    .454698   .0552825     8.22   0.000     .3463463    .5630496
-                 indfmpir |    .188783   .0173202    10.90   0.000      .154836    .2227299
-                    _cons |  -3.174577   .1343728   -23.63   0.000    -3.437943   -2.911211
+                 ridageyr |   1.022436    .001324    17.14   0.000     1.019845    1.025035
+                          |
+                 ridreth1 |
+                       2  |   1.123021   .1889653     0.69   0.490     .8075333    1.561764
+                       3  |   1.651244   .1240886     6.67   0.000     1.425098    1.913277
+                       4  |   1.230456   .0974736     2.62   0.009     1.053503     1.43713
+                       5  |   1.703572   .2387583     3.80   0.000     1.294384    2.242114
+                          |
+               2.riagendr |   1.675767   .0910025     9.51   0.000      1.50657    1.863967
+                 indfmpir |   1.120301   .0198376     6.42   0.000     1.082087    1.159865
+                    _cons |   .1331659   .0116903   -22.97   0.000     .1121161    .1581678
 -------------------------------------------------------------------------------------------
+Note: _cons estimates baseline odds.
 
+. tab riagendr wears_glasses_or_contacts, row
+
++----------------+
+| Key            |
+|----------------|
+|   frequency    |
+| row percentage |
++----------------+
+
+           | wears_glasses_or_cont
+           |         acts
+    Gender |         0          1 |     Total
+-----------+----------------------+----------
+         1 |     2,014      1,181 |     3,195 
+           |     63.04      36.96 |    100.00 
+-----------+----------------------+----------
+         2 |     1,766      1,584 |     3,350 
+           |     52.72      47.28 |    100.00 
+-----------+----------------------+----------
+     Total |     3,780      2,765 |     6,545 
+           |     57.75      42.25 |    100.00 
 
 . prtest wears_glasses_or_contacts, by(riagendr)
 
-Two-sample test of proportions                     1: Number of obs =     3383
-                                                   2: Number of obs =     3597
+Two-sample test of proportions                     1: Number of obs =     3195
+                                                   2: Number of obs =     3350
 ------------------------------------------------------------------------------
        Group |       Mean   Std. Err.      z    P>|z|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-           1 |   .3012119   .0078878                      .2857521    .3166718
-           2 |   .3783709   .0080864                      .3625218    .3942199
+           1 |   .3696401   .0085398                      .3529023    .3863778
+           2 |   .4728358   .0086259                      .4559293    .4897423
 -------------+----------------------------------------------------------------
-        diff |  -.0771589   .0112964                     -.0992994   -.0550185
-             |  under Ho:   .0113532    -6.80   0.000
+        diff |  -.1031958   .0121382                     -.1269861   -.0794054
+             |  under Ho:   .0122146    -8.45   0.000
 ------------------------------------------------------------------------------
-        diff = prop(1) - prop(2)                                  z =  -6.7962
+        diff = prop(1) - prop(2)                                  z =  -8.4485
     Ho: diff = 0
 
     Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0
  Pr(Z < z) = 0.0000         Pr(|Z| > |z|) = 0.0000          Pr(Z > z) = 1.0000
+
 ```
 
-From the Logistic Regression Model, the coefficient for riagendr is statistically significant at 0.01 level( p \< 0.01), so the odds of wearing glasses/contact lenses for distance vision differs between men and women.
+From the Logistic Regression Model, the coefficient for riagendr is **statistically significant** at 0.01 level( p \< 0.01), so the odds of wearing glasses/contact lenses for distance vision differs between men and women.
 
-The coefficient for the riagendr is .454698, and **odds ratio** = exp(.454698) = 1.5757. Greater than 1 indicates that as the predictor increases 1, the odds of the outcome occurring increase 57.57%. This means for being a female compared a male, the odds of wearing glasses/contact increase by about 57.57%.
+The **odds ratio** for the riagendr is 1.6758. Greater than 1 indicates that the predictor compared to the baseline, the odds of the outcome occurring increase 67.58%. This means that being a female compared to be a male, the odds of wearing glasses/contact increase by about 67.58%.
 
-From the Proportions Test, the proportion of wearers of glasses/contact for female is .3783709, for male is .3012119. The p-value from the prtest command is below 0.01 significance level, so reject the null hypothesis and conclude that there's a statistically significant difference in the proportion of glasses/contact lens wearers between male and female.
+From the **Proportions Test**, the proportion of wearers of glasses/contact for male is 36.96%, for female is 47.28%. There is a magnitude difference 10.32%. The p-value from the prtest command is below 0.01 significance level, so reject the null hypothesis and conclude that there's a statistically significant difference in the proportion of glasses/contact lens wearers between male and female.
 
 ## Problem 2 - Sakila
 
@@ -410,6 +419,7 @@ LIMIT 1;
 
 sports|74
 ```
+
 ```{r}
 library(DBI)
 library(RSQLite)
@@ -466,6 +476,7 @@ dbDisconnect(con)
 ```
 
 a single SQL query:
+
 ``` sql
 SELECT country, COUNT(customer_id) AS customer_count
 FROM customer
@@ -495,7 +506,6 @@ dbDisconnect(con)
 ```
 
 So the country that has customers of 9 is the United Kingdom.
-
 
 ## Problem 3 - US Records
 
@@ -530,7 +540,7 @@ most_common_area_code
 
 d.  Produce a histogram of the log of the apartment numbers for all addresses.
 
-From the data, we can see that the number after the # is the apt. number. And when there is no #, just the last number from the string cannot be assumed to be the apt. number. For example, "82 Us Highway 46", 46 is not the apt. number since there is another record: "9 State Highway 57 #22", which shows 57 is not but 22 is the apt. number.
+From the data, we can see that the number after the \# is the apt. number. And when there is no #, just the last number from the string cannot be assumed to be the apt. number. For example, "82 Us Highway 46", 46 is not the apt. number since there is another record: "9 State Highway 57 #22", which shows 57 is not but 22 is the apt. number.
 
 ```{r}
 apartments <- as.numeric(gsub(".*#(\\d+)$", "\\1", data$address))
@@ -563,7 +573,7 @@ chi_first <- chisq.test(as.vector(table(leading_digits)), p = benford_first)
 print(chi_first)
 ```
 
-The Chi-squared test gives a p-value, which tells the probability that the observed frequencies are from a distribution that matches the expected frequencies. A low p-value < 0.05 suggests that the data does not conform to the expected distribution. The plot gives the same information. So the first digit of a sequence of numbers doesn't follows Benford's Law: I don't think the apartment numbers would pass as real data. The data might be synthetic or manipulated.
+The Chi-squared test gives a p-value, which tells the probability that the observed frequencies are from a distribution that matches the expected frequencies. A low p-value \< 0.05 suggests that the data does not conform to the expected distribution. The plot gives the same information. So the first digit of a sequence of numbers doesn't follows Benford's Law: I don't think the apartment numbers would pass as real data. The data might be synthetic or manipulated.
 
 f.  Repeat your analysis of Benford's law on the last digit of the street number.
 
